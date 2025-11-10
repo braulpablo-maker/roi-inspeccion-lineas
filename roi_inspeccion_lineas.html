@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Calculadora ROI - Inspección de Líneas AT/MT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <div class="header">
+    <h1>Calculadora de ROI</h1>
+    <h2>Inspección de Líneas de Alta / Media Tensión</h2>
+  </div>
+
+  <div class="container">
+    <div class="form-container">
+      <!-- ENTRADAS -->
+      <fieldset>
+        <legend>1. Alcance de la Red</legend>
+        <div class="field">
+          <label for="targetLengthKm">L_KM_OBJ_AÑO (km de líneas a inspeccionar por año)</label>
+          <input type="number" id="targetLengthKm" value="500" step="0.01">
+        </div>
+        <p class="small-hint">Es la longitud total de red que quiero inspeccionar en un año.</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>2. Metodología Actual (Cuadrilla TCT)</legend>
+        <div class="field">
+          <label for="crewKmPerMonth">KM_ACT_MES (km/mes que inspecciona la cuadrilla)</label>
+          <input type="number" id="crewKmPerMonth" value="8" step="0.01">
+        </div>
+        <div class="field">
+          <label for="crewMonthlyCost">C_CUAD_MES (USD/mes, costo de la cuadrilla)</label>
+          <input type="number" id="crewMonthlyCost" value="36000" step="0.01">
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>3. Metodología Nueva (Drone / Inspección Remota)</legend>
+        <div class="field">
+          <label for="droneKmPerMonth">KM_DRONE_MES (km/mes que inspecciona el drone)</label>
+          <input type="number" id="droneKmPerMonth" value="90" step="0.01">
+        </div>
+        <div class="field">
+          <label for="droneMonthlyCost">C_DRONE_MES (USD/mes, costo del servicio drone)</label>
+          <input type="number" id="droneMonthlyCost" value="24000" step="0.01">
+        </div>
+        <div class="field">
+          <label for="extraOpexAnnual">OPEX_ADIC (USD/año, otros costos operativos nuevos)</label>
+          <input type="number" id="extraOpexAnnual" value="0" step="0.01">
+        </div>
+        <div class="field">
+          <label for="crewResidualFraction">F_CUAD_REMAN (fracción de uso de cuadrilla con drone, 0–1)</label>
+          <input type="number" id="crewResidualFraction" value="0.5" step="0.01">
+        </div>
+        <p class="small-hint">
+          F_CUAD_REMAN = 0,3 significa que mantengo el 30% del costo de cuadrilla
+          para trabajos puntuales en altura, correcciones, etc.
+        </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>4. Fiabilidad / Fallas</legend>
+        <div class="field">
+          <label for="deviationsPerKmPerYear">DEV_CRIT_KM (desvíos críticos que existen por km/año)</label>
+          <input type="number" id="deviationsPerKmPerYear" value="0.5" step="0.01">
+        </div>
+        <div class="field">
+          <label for="pEscalationCurrentPercent">P_ESCAL_ACT (%) desvíos que escalan a falla hoy</label>
+          <input type="number" id="pEscalationCurrentPercent" value="10" step="0.01">
+        </div>
+        <div class="field">
+          <label for="volLostPerFailureM3">VOL_PERDIDO_M3_FALLA (m³ de petróleo afectados por falla)</label>
+          <input type="number" id="volLostPerFailureM3" value="50" step="0.01">
+        </div>
+        <div class="field">
+          <label for="oilPricePerBbl">P_OIL_USD_BBL (precio del petróleo USD/barril)</label>
+          <input type="number" id="oilPricePerBbl" value="65" step="0.01">
+        </div>
+        <div class="field">
+          <label for="marginOnSales">MARGEN_VTA (% margen sobre ventas)</label>
+          <input type="number" id="marginOnSales" value="15" step="0.01">
+        </div>
+        <div class="field">
+          <label for="repairCostPerFailure">C_REPAR_FIJA (USD/falla, reparación + logística)</label>
+          <input type="number" id="repairCostPerFailure" value="5000" step="0.01">
+        </div>
+        <p class="small-hint">
+          La probabilidad de escalamiento con drone se estima según la relación
+          de velocidades de inspección (km/mes cuadrilla vs km/mes drone).
+        </p>
+      </fieldset>
+
+      <fieldset>
+        <legend>5. Inversión y Ajustes</legend>
+        <div class="field">
+          <label for="capex">CAPEX (USD, inversión inicial)</label>
+          <input type="number" id="capex" value="40000" step="0.01">
+        </div>
+        <div class="field">
+          <label for="implementationCost">IMPL (USD, puesta en marcha / implementación)</label>
+          <input type="number" id="implementationCost" value="5000" step="0.01">
+        </div>
+        <div class="field">
+          <label for="riskFactor">F_RIESGO (0–1)</label>
+          <input type="number" id="riskFactor" value="0.8" step="0.01">
+        </div>
+        <div class="field">
+          <label for="adoptionFactor">F_ADOP (0–1)</label>
+          <input type="number" id="adoptionFactor" value="0.7" step="0.01">
+        </div>
+      </fieldset>
+
+      <div class="button-group">
+        <button type="button" class="btn-primary" onclick="calcularROI()">Calcular ROI</button>
+        <button type="button" class="btn-secondary" onclick="guardarInputsLocal()">Guardar inputs (local)</button>
+        <button type="button" class="btn-secondary" onclick="cargarInputsLocal()">Cargar inputs (local)</button>
+        <button type="button" class="btn-secondary" onclick="guardarInputs()">Guardar inputs (CSV)</button>
+        <button type="button" class="btn-secondary" onclick="exportarPDF()">Exportar PDF</button>
+      </div>
+    </div>
+
+    <!-- RESULTADOS -->
+    <div class="results-container">
+      <h3>Resultados del Modelo</h3>
+      <div id="resultsContent">
+        <p>Complete los datos y presione "Calcular ROI".</p>
+      </div>
+    </div>
+  </div>
+
+  <details>
+    <summary>Ayuda - Soporte de cálculos</summary>
+    <div>
+      <h2>Soporte de cálculos – App ROI inspección de líneas AT/MT</h2>
+      <p>Este documento describe <strong>paso a paso</strong> todos los cálculos que realiza la app HTML de ROI para inspección de líneas de Alta y Media Tensión, comparando:</p>
+      <ul>
+        <li>Metodología actual: <strong>cuadrilla TCT</strong>.</li>
+        <li>Metodología nueva: <strong>drone / inspección remota</strong>.</li>
+      </ul>
+      <p>La idea es que cualquier cliente pueda entender de dónde salen los números y adaptar los parámetros a su realidad.</p>
+      <hr>
+      <h3>1. Variables de entrada</h3>
+      <h4>1.1 Alcance de la red</h4>
+      <ul>
+        <li><strong>L_KM_OBJ_AÑO</strong>: km de líneas a inspeccionar por año.
+          <ul><li>Representa la longitud total de red que se quiere cubrir en un año.</li></ul></li>
+      </ul>
+      <h4>1.2 Metodología actual (cuadrilla TCT)</h4>
+      <ul>
+        <li><strong>KM_ACT_MES</strong>: km/mes que inspecciona la cuadrilla TCT.</li>
+        <li><strong>C_CUAD_MES</strong>: USD/mes, costo mensual total de la cuadrilla.
+          <ul><li>Incluye camión con guindola, 3 operarios certificados, viáticos, etc.</li></ul></li>
+        <li><strong>F_CUAD_REMAN</strong>: fracción de la cuadrilla que se mantiene en operación cuando se incorpora el drone (0–1).
+          <ul><li>Ejemplo: 0,3 significa que se mantiene el 30% del costo mensual de la cuadrilla para trabajos específicos (correcciones, tareas en altura, etc.).</li></ul></li>
+      </ul>
+      <h4>1.3 Metodología nueva (drone / inspección remota)</h4>
+      <ul>
+        <li><strong>KM_DRONE_MES</strong>: km/mes que puede inspeccionar el drone.</li>
+        <li><strong>C_DRONE_MES</strong>: USD/mes, costo del servicio de drone.</li>
+        <li><strong>OPEX_ADIC</strong>: USD/año, otros costos operativos adicionales asociados a la nueva solución (software, licencias, comunicaciones, etc.).</li>
+      </ul>
+      <h4>1.4 Fiabilidad / fallas</h4>
+      <ul>
+        <li><strong>DEV_CRIT_KM</strong>: desvíos críticos que existen por km/año en la red.
+          <ul><li>Ejemplos: aisladores dañados, elementos en zona de seguridad, vegetación, corrosión, etc.</li></ul></li>
+        <li><strong>P_ESCAL_ACT_PCT</strong>: porcentaje de desvíos críticos que hoy escalan a falla grave (en %). De aquí se obtiene:
+          <ul><li><code>P_ESCAL_ACT = P_ESCAL_ACT_PCT / 100</code>.</li></ul></li>
+        <li><strong>VOL_PERDIDO_M3_FALLA</strong>: m³ de petróleo afectados por el downtime de una falla grave (volumen promedio por falla).</li>
+        <li><strong>P_OIL_USD_BBL</strong>: precio del petróleo en USD/barril. En el cálculo se convierte a USD/m³ usando un factor de conversión estándar.</li>
+        <li><strong>MARGEN_VTA_PCT</strong>: margen sobre ventas en porcentaje (por ejemplo, 15% = 15). De aquí se obtiene:
+          <ul><li><code>MARGEN_VTA = MARGEN_VTA_PCT / 100</code>.</li></ul></li>
+        <li><strong>C_REPAR_FIJA</strong>: USD/falla, costo promedio fijo de reparación y logística por falla grave.</li>
+      </ul>
+      <h4>1.5 Inversión y factores de ajuste</h4>
+      <ul>
+        <li><strong>CAPEX</strong>: USD, inversión inicial en la nueva solución (equipos, hardware, etc.).</li>
+        <li><strong>IMPL</strong>: USD, costos de implementación y puesta en marcha.</li>
+        <li><strong>F_RIESGO</strong>: factor de riesgo (0–1), ajusta el ROI según el nivel de madurez o incertidumbre del proyecto.</li>
+        <li><strong>F_ADOP</strong>: factor de adopción (0–1), ajusta el ROI según el grado de uso real y adopción de la solución en campo.</li>
+      </ul>
+      <hr>
+      <h3>2. Cálculos de costos operativos</h3>
+      <h4>2.1 Meses de operación necesarios</h4>
+      <ol>
+        <li><strong>Meses de cuadrilla requeridos en el escenario actual</strong>:<br>
+        <code>MES_CUAD_ACT = L_KM_OBJ_AÑO / KM_ACT_MES</code>
+        <ul><li>Si una cuadrilla recorre KM_ACT_MES km por mes, los meses necesarios para cubrir los L_KM_OBJ_AÑO km son esa división.</li></ul></li>
+        <li><strong>Meses de operación de drone necesarios en el escenario nuevo</strong>:<br>
+        <code>MES_DRONE = L_KM_OBJ_AÑO / KM_DRONE_MES</code>
+        <ul><li>Análogo al caso de la cuadrilla, pero usando la capacidad mensual del drone.</li></ul></li>
+      </ol>
+      <h4>2.2 Costos anuales de inspección</h4>
+      <ol start="3">
+        <li><strong>Costo anual actual de inspección (solo cuadrilla)</strong>:<br>
+        <code>COSTO_ACT_ANUAL = MES_CUAD_ACT * C_CUAD_MES</code></li>
+        <li><strong>Costo anual del servicio de drone</strong>:<br>
+        <code>COSTO_DRONE_ANUAL = MES_DRONE * C_DRONE_MES</code></li>
+        <li><strong>Costo anual de la cuadrilla remanente (con drone)</strong>:<br>
+        <code>COSTO_CUAD_REMAN = MES_CUAD_ACT * C_CUAD_MES * F_CUAD_REMAN</code>
+        <ul><li>Se asume que la base de costo de cuadrilla es la misma, pero multiplicada por la fracción que se mantiene en operación.</li></ul></li>
+        <li><strong>Costo anual total nuevo de inspección (drone + cuadrilla remanente + otros OPEX)</strong>:<br>
+        <code>COSTO_NUEVO_ANUAL = COSTO_DRONE_ANUAL + COSTO_CUAD_REMAN + OPEX_ADIC</code></li>
+      </ol>
+      <h4>2.3 Ahorro operativo anual</h4>
+      <ol start="7">
+        <li><strong>Ahorro operativo anual</strong> por pasar de la metodología actual a la nueva:<br>
+        <code>AH_OPER = COSTO_ACT_ANUAL - COSTO_NUEVO_ANUAL</code>
+        <ul><li>Si AH_OPER > 0, la nueva metodología ahorra dinero en OPEX.</li><li>Si AH_OPER < 0, la nueva metodología es más cara en operación y requiere que las mejoras en fiabilidad compensen esa diferencia.</li></ul></li>
+      </ol>
+      <hr>
+      <h3>3. Cálculos de fiabilidad y fallas</h3>
+      <h4>3.1 Desvíos críticos totales</h4>
+      <ol start="8">
+        <li><strong>Desvíos críticos que existen en la red por año</strong>:<br>
+        <code>DEV_TOT_EXIST = L_KM_OBJ_AÑO * DEV_CRIT_KM</code>
+        <ul><li>Representa cuántos desvíos críticos se generan en la red completa en un año, independientemente de la capacidad de detección.</li></ul></li>
+      </ol>
+      <h4>3.2 Probabilidad de escalamiento a falla</h4>
+      <ol start="9">
+        <li><strong>Probabilidad de escalamiento a falla en el escenario actual</strong>:<br>
+        Se ingresa directamente como porcentaje:<br>
+        <code>P_ESCAL_ACT = P_ESCAL_ACT_PCT / 100</code></li>
+        <li><strong>Probabilidad de escalamiento a falla con drone</strong> (aproximación basada en la velocidad de inspección):<br>
+        Se asume que la probabilidad de escalamiento es aproximadamente proporcional al tiempo que el desvío permanece sin ser detectado. A falta de datos de tiempo, se utiliza la relación de <strong>velocidades de inspección (km/mes)</strong> entre cuadrilla y drone:<br>
+        - <strong>KM_ACT_MES</strong>: km/mes que inspecciona la cuadrilla.<br>
+        - <strong>KM_DRONE_MES</strong>: km/mes que inspecciona el drone.<br>
+        Bajo el supuesto de que el tiempo medio de detección es aproximadamente la mitad del tiempo de recorrer toda la red, la relación de tiempos se aproxima por la relación inversa de km/mes. Entonces:<br>
+        <code>P_ESCAL_DRONE ≈ P_ESCAL_ACT * (KM_ACT_MES / KM_DRONE_MES)</code>
+        <ul><li>Si el drone inspecciona más rápido que la cuadrilla (KM_DRONE_MES > KM_ACT_MES), el cociente es menor que 1 y la probabilidad de escalamiento se reduce.</li><li>En la implementación de la app, se impone que:</li><li>Si el cálculo anterior diera un valor mayor que P_ESCAL_ACT, se trunca a <strong>P_ESCAL_DRONE = P_ESCAL_ACT</strong> (el drone nunca empeora la probabilidad en el modelo).</li></ul></li>
+      </ol>
+      <h4>3.3 Número de fallas graves por año</h4>
+      <ol start="11">
+        <li><strong>Fallas graves por año en el escenario actual</strong>:<br>
+        <code>F_FALLAS_ACT = DEV_TOT_EXIST * P_ESCAL_ACT</code></li>
+        <li><strong>Fallas graves por año con drone</strong>:<br>
+        <code>F_FALLAS_DRONE = DEV_TOT_EXIST * P_ESCAL_DRONE</code></li>
+      </ol>
+      <h4>3.4 Costo por falla grave</h4>
+      <ol start="13">
+        <li><strong>Conversión de precio del petróleo a USD/m³</strong>:<br>
+        La app usa internamente el precio en USD/m³. Dado un precio ingresado en USD/barril (<strong>P_OIL_USD_BBL</strong>), se aplica un factor de conversión estándar:<br>
+        <code>P_OIL_USD_M3 = P_OIL_USD_BBL * 6.2898</code></li>
+        <li><strong>Ingreso bruto perdido por falla</strong> (por volumen de petróleo no producido/vendido):<br>
+        <code>ING_BRUTO_FALLA = VOL_PERDIDO_M3_FALLA * P_OIL_USD_M3</code></li>
+        <li><strong>Utilidad (margen) perdida por falla</strong>:<br>
+        A partir del margen sobre ventas en porcentaje (<strong>MARGEN_VTA_PCT</strong>) se obtiene el margen como fracción:<br>
+        <code>MARGEN_VTA = MARGEN_VTA_PCT / 100</code>
+        La utilidad perdida por falla es entonces:<br>
+        <code>UTIL_PERDIDA_FALLA = ING_BRUTO_FALLA * MARGEN_VTA</code></li>
+        <li><strong>Costo total de una falla grave</strong> (utilidad perdida + costos fijos de reparación/logística):<br>
+        <code>C_FALLA = UTIL_PERDIDA_FALLA + C_REPAR_FIJA</code></li>
+      </ol>
+      <h4>3.5 Costo anual de fallas y ahorro asociado</h4>
+      <ol start="16">
+        <li><strong>Costo anual de fallas en el escenario actual</strong>:<br>
+        <code>C_FALLAS_ACT_ANUAL = F_FALLAS_ACT * C_FALLA</code></li>
+        <li><strong>Costo anual de fallas con drone</strong>:<br>
+        <code>C_FALLAS_DRONE_ANUAL = F_FALLAS_DRONE * C_FALLA</code></li>
+        <li><strong>Ahorro anual por fallas evitadas</strong>:<br>
+        <code>AH_FALLAS = C_FALLAS_ACT_ANUAL - C_FALLAS_DRONE_ANUAL</code></li>
+      </ol>
+      <hr>
+      <h3>4. Beneficio total, ROI y payback</h3>
+      <h4>4.1 Beneficio neto anual</h4>
+      <ol start="19">
+        <li><strong>Beneficio total anual</strong> (operativo + fiabilidad):<br>
+        <code>BEN_TOT_1A = AH_OPER + AH_FALLAS</code></li>
+        <li><strong>Beneficio neto anual</strong>:<br>
+        En este modelo, el beneficio neto ya considera los costos operativos nuevos (porque fueron incluidos en COSTO_NUEVO_ANUAL), por lo que:<br>
+        <code>BEN_NETO_1A = BEN_TOT_1A</code></li>
+      </ol>
+      <h4>4.2 Inversión total</h4>
+      <ol start="21">
+        <li><strong>Inversión total inicial</strong>:<br>
+        <code>INV_TOTAL = CAPEX + IMPL</code></li>
+      </ol>
+      <h4>4.3 ROI Año 1 (base)</h4>
+      <ol start="22">
+        <li><strong>ROI base del primer año</strong>:<br>
+        <code>ROI_1A_BASE = BEN_NETO_1A / INV_TOTAL</code>
+        <ul><li>En la app se muestra también en porcentaje multiplicando por 100.</li></ul></li>
+      </ol>
+      <h4>4.4 ROI ajustado por riesgo y adopción</h4>
+      <ol start="23">
+        <li><strong>ROI ajustado por riesgo y adopción</strong>:<br>
+        Se aplica un ajuste multiplicativo usando los factores F_RIESGO y F_ADOP:<br>
+        <code>ROI_1A_AJUST = ROI_1A_BASE * F_RIESGO * F_ADOP</code>
+        <ul><li>Ejemplo: si ROI_1A_BASE = 80%, F_RIESGO = 0,8 y F_ADOP = 0,7, el ROI ajustado será:<br>
+        <code>0.8 * 0.8 * 0.7 = 0.448 (44.8%)</code></li></ul></li>
+      </ol>
+      <h4>4.5 Payback (período de recuperación)</h4>
+      <ol start="24">
+        <li><strong>Payback en años</strong>:<br>
+        <code>PAYBACK = INV_TOTAL / BEN_NETO_1A</code>
+        <ul><li>Si BEN_NETO_1A ≤ 0, el payback no se alcanza, y el modelo lo reporta como "No se recupera (BEN_NETO_1A ≤ 0)".</li></ul></li>
+      </ol>
+      <hr>
+      <h3>5. Uso práctico del modelo con clientes</h3>
+      <ol>
+        <li><strong>Cargar parámetros</strong> de la operación actual y propuesta:
+          <ul><li>Km/año, capacidades y costos mensuales de cuadrilla y drone.</li><li>Desvíos críticos por km, tiempos de detección y parámetros económicos del petróleo.</li></ul></li>
+        <li><strong>Revisar resultados</strong> clave:
+          <ul><li>Ahorro operativo anual (AH_OPER).</li><li>Ahorro anual por fallas evitadas (AH_FALLAS).</li><li>Beneficio neto anual (BEN_NETO_1A).</li><li>ROI Año 1 (base y ajustado) y payback.</li></ul></li>
+        <li><strong>Sensibilizar variables</strong> estratégicas:
+          <ul><li>Eficiencia de inspección del drone (KM_DRONE_MES).</li><li>Reducción del tiempo de detección (T_DET_DRONE).</li><li>Margen sobre ventas y volumen perdido por falla.</li><li>Factores de riesgo y adopción según etapa del proyecto (piloto, expansión, despliegue completo).</li></ul></li>
+      </ol>
+      <p>Este documento sirve como soporte técnico para explicar el funcionamiento interno de la app y justificar los resultados de ROI frente a equipos técnicos, financieros y de gestión.</p>
+      <hr>
+      <h3>6. Resumen de supuestos principales</h3>
+      <p>Para interpretar correctamente los resultados del modelo y de la app, es importante tener claros los siguientes <strong>supuestos</strong>:</p>
+      <ol>
+        <li><strong>Cobertura de red fija</strong>:<br>
+        Se asume que la longitud de red a inspeccionar por año (<strong>L_KM_OBJ_AÑO</strong>) es un objetivo fijo y que tanto la cuadrilla como el drone ajustan su tiempo de operación (meses/año) para cubrir esa longitud.</li>
+        <li><strong>Costos de cuadrilla y drone lineales con los meses de operación</strong>:<br>
+        Los costos mensuales (<strong>C_CUAD_MES</strong>, <strong>C_DRONE_MES</strong>) se consideran proporcionales a los meses necesarios para cubrir la red.</li>
+        <li><strong>Probabilidad de escalamiento ligada a la velocidad de inspección</strong>:<br>
+        No se usan tiempos de detección explícitos; en su lugar, se aproxima la probabilidad de escalamiento con drone como:<br>
+        <code>P_ESCAL_DRONE ≈ P_ESCAL_ACT * (KM_ACT_MES / KM_DRONE_MES)</code>
+        <ul><li>Si el drone inspecciona más km/mes que la cuadrilla, se reduce proporcionalmente la probabilidad de que un desvío no detectado a tiempo termine en falla grave.</li><li>Se impone que el drone nunca empeora la probabilidad: si el valor calculado superara a P_ESCAL_ACT, se usa P_ESCAL_ACT.</li></ul></li>
+        <li><strong>Generación de desvíos críticos</strong>:<br>
+        Los desvíos críticos se modelan como una tasa por km/año (<strong>DEV_CRIT_KM</strong>), independiente de la metodología de inspección. La inspección no "crea" ni "elimina" desvíos: sólo los detecta antes de que escalen.</li>
+        <li><strong>Costo de falla centrado en el impacto económico</strong>:<br>
+        El costo de una falla grave incluye:
+        <ul><li>La <strong>utilidad perdida</strong> por el volumen de petróleo no producido/vendido (precio × volumen × margen).</li><li>Un <strong>costo fijo de reparación/logística</strong> (<strong>C_REPAR_FIJA</strong>).</li></ul>
+        No se incluyen explícitamente otros impactos (reputacionales, ambientales, regulatorios), aunque podrían incorporarse como un incremento en C_REPAR_FIJA si se desea ser más conservador.</li>
+        <li><strong>Beneficio neto anual como base para ROI</strong>:<br>
+        El beneficio neto anual (<strong>BEN_NETO_1A</strong>) incluye tanto el ahorro operativo (<strong>AH_OPER</strong>) como el ahorro por fallas evitadas (<strong>AH_FALLAS</strong>).<br>
+        El ROI base del primer año se calcula siempre como <strong>BEN_NETO_1A / INV_TOTAL</strong>.</li>
+        <li><strong>Ajuste por riesgo y adopción</strong>:<br>
+        El ROI ajustado se reduce mediante los factores <strong>F_RIESGO</strong> y <strong>F_ADOP</strong> para reflejar:
+        <ul><li>Incertidumbre tecnológica, de ejecución o regulatoria (riesgo).</li><li>Probabilidad de que la solución se use plenamente según lo esperado (adopción).</li></ul></li>
+      </ol>
+      <p>Este anexo de supuestos permite usar el modelo de forma transparente y explicarlo de manera consistente a distintas audiencias (operaciones, mantenimiento, seguridad, finanzas, dirección).</p>
+    </div>
+  </details>
+
+  <script src="script.js"></script>
+</body>
+</html>
