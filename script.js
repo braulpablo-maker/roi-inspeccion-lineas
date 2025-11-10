@@ -454,7 +454,7 @@ function exportarPDF() {
   doc.setTextColor(lightTextColor);
   const fecha = new Date().toISOString().slice(0, 10);
   doc.text(`Reporte generado el ${fecha}`, margin, footerY);
-  doc.text("Calculadora de ROI para Inspección de Líneas", pageWidth - margin, footerY, { align: "right" });
+  doc.text("© 2025 Pablo Braul | ROI Drone Inspection", pageWidth - margin, footerY, { align: "right" });
 
   doc.save(`roi_inspeccion_lineas_${fecha}.pdf`);
 }
